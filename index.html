@@ -29,6 +29,13 @@ select{width:84px}
 .err{color:var(--err);font-size:13px;min-height:1em;margin-top:6px}
 .rumus{font-size:12px;color:var(--mut);line-height:1.6}
 .btn{font:inherit;font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--txt);width:100%;margin-top:4px}
+.wa-field{margin-top:8px}
+.wa-field label{display:block;font-size:12px;color:var(--mut);margin-bottom:4px}
+.wa-field input{width:100%}
+.wa-pratinjau{white-space:pre-wrap;font-size:13px;line-height:1.5;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:10px}
+.wa-tombol{display:flex;gap:8px;margin-top:10px}
+.wa-tombol .btn{margin-top:0;flex:1}
+.btn-utama{background:var(--acc);border-color:var(--acc);color:#fff}
 </style>
 </head>
 <body>
@@ -63,6 +70,19 @@ select{width:84px}
   <h2>Total 3 Tangki</h2>
   <div class="hasil" id="rt">— <small>liter</small></div>
   <button class="btn" id="reset" type="button">Kosongkan isian</button>
+</section>
+
+<section class="card">
+  <h2>Laporan WA Solar</h2>
+  <div class="wa-field"><label for="wa-tgl">Tanggal akhir</label><input id="wa-tgl" type="date"></div>
+  <div class="wa-field"><label for="wa-awal">Stok akhir bulan lalu (liter)</label><input id="wa-awal" type="text" inputmode="numeric" placeholder="contoh: 24315" autocomplete="off"></div>
+  <div class="wa-field"><label for="wa-jam">Pemakaian per jam (liter)</label><input id="wa-jam" type="text" inputmode="numeric" placeholder="80" autocomplete="off"></div>
+  <div class="wa-pratinjau" id="wa-pratinjau"></div>
+  <div class="err" id="wa-err"></div>
+  <div class="wa-tombol">
+    <button class="btn" id="wa-kirim-teks" type="button">Kirim WA (teks)</button>
+    <button class="btn btn-utama" id="wa-kirim-gambar" type="button">Kirim WA Gambar</button>
+  </div>
 </section>
 
 <section class="card rumus">
@@ -139,17 +159,155 @@ select{width:84px}
     return bulat;
   }
 
+  var totalSekarang = null;
+
   function hitungSemua() {
     var a = hitung('t1');
     var b = hitung('t2');
     var c = hitung('td');
     var total = document.getElementById('rt');
-    if (a === null || b === null || c === null) {
+    if (a === null || b === null || c === null || isNaN(a) || isNaN(b) || isNaN(c)) {
+      totalSekarang = null;
       total.innerHTML = '— <small>liter</small>';
     } else {
-      total.innerHTML = (a + b + c).toLocaleString('id-ID') + ' <small>liter</small>';
+      totalSekarang = a + b + c;
+      total.innerHTML = totalSekarang.toLocaleString('id-ID') + ' <small>liter</small>';
     }
     simpan();
+    perbaruiWA();
+  }
+
+  // ---------- Laporan WA ----------
+  var KUNCI_WA = 'hitung-solar-wa-v1';
+  var BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+  // Liter selalu bilangan bulat; titik atau koma dibuang (pemisah ribuan)
+  function bacaBulat(teks) {
+    var t = String(teks).replace(/[^0-9]/g, '');
+    return t === '' ? null : parseInt(t, 10);
+  }
+
+  function angka(n) { return Math.round(n).toLocaleString('id-ID'); }
+
+  function hariIni() {
+    var d = new Date();
+    var bln = ('0' + (d.getMonth() + 1)).slice(-2);
+    var tgl = ('0' + d.getDate()).slice(-2);
+    return d.getFullYear() + '-' + bln + '-' + tgl;
+  }
+
+  // Mengembalikan {teks} atau {error}
+  function buatLaporan() {
+    var tglVal = document.getElementById('wa-tgl').value;
+    var awal = bacaBulat(document.getElementById('wa-awal').value);
+    var jam = bacaBulat(document.getElementById('wa-jam').value);
+    if (!tglVal) return { error: 'Isi tanggal akhir.' };
+    if (totalSekarang === null) return { error: 'Isi ketiga tangki dengan tinggi yang valid dulu.' };
+    if (awal === null) return { error: 'Isi stok akhir bulan lalu.' };
+    if (jam === null || jam <= 0) return { error: 'Isi pemakaian per jam (lebih dari 0).' };
+
+    var d = new Date(tglVal + 'T00:00:00');
+    var perHari = jam * 24;
+    var hari = Math.round(totalSekarang / perHari);
+    var jamCukup = Math.round(totalSekarang / jam);
+    var baris = [
+      'Update Stock Solar Farm-Hatch 01-' + d.getDate() + ' ' + BULAN[d.getMonth()] + ' ' + d.getFullYear(),
+      '',
+      'Stok Akhir bulan lalu = ' + angka(awal) + ' liter',
+      '',
+      'Stok Akhir Minggu ini = ' + angka(totalSekarang) + ' liter.',
+      '',
+      'Pemakaian per jam = ' + angka(jam) + ' liter.',
+      '',
+      'Pemakaian perhari = ' + angka(perHari) + ' liter.',
+      '',
+      'Estimasi kecukupan pemakaian = ' + hari + 'hari /= ' + jamCukup + ' Jam'
+    ];
+    return { teks: baris.join('\n') };
+  }
+
+  function perbaruiWA() {
+    var hasil = buatLaporan();
+    var pra = document.getElementById('wa-pratinjau');
+    var err = document.getElementById('wa-err');
+    if (hasil.error) {
+      pra.textContent = '';
+      err.textContent = hasil.error;
+    } else {
+      pra.textContent = hasil.teks;
+      err.textContent = '';
+    }
+  }
+
+  function kirimTeks() {
+    var hasil = buatLaporan();
+    if (hasil.error) { perbaruiWA(); return; }
+    window.open('https://wa.me/?text=' + encodeURIComponent(hasil.teks), '_blank');
+  }
+
+  function kirimGambar() {
+    var hasil = buatLaporan();
+    if (hasil.error) { perbaruiWA(); return; }
+    var baris = hasil.teks.split('\n');
+    var lebar = 720, pad = 36, lh = 40;
+    var tinggi = 110;
+    baris.forEach(function (b, i) { if (i > 0) tinggi += b === '' ? 18 : lh; });
+    tinggi += 40;
+
+    var c = document.createElement('canvas');
+    c.width = lebar; c.height = tinggi;
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, lebar, tinggi);
+    ctx.fillStyle = '#0b6bcb';
+    ctx.fillRect(0, 0, lebar, 90);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 26px system-ui, sans-serif';
+    ctx.fillText(baris[0], pad, 56);
+
+    ctx.fillStyle = '#1d2430';
+    ctx.font = '26px system-ui, sans-serif';
+    var y = 130;
+    baris.forEach(function (b, i) {
+      if (i === 0) return;
+      if (b === '') { y += 18; return; }
+      ctx.fillText(b, pad, y);
+      y += lh;
+    });
+
+    c.toBlob(function (blob) {
+      if (!blob) { perbaruiWA(); return; }
+      var berkas = new File([blob], 'update-stock-solar.png', { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [berkas] })) {
+        navigator.share({ files: [berkas], title: 'Update Stock Solar' }).catch(function () {});
+      } else {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'update-stock-solar.png';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+    }, 'image/png');
+  }
+
+  function simpanWA() {
+    try {
+      localStorage.setItem(KUNCI_WA, JSON.stringify({
+        awal: document.getElementById('wa-awal').value,
+        jam: document.getElementById('wa-jam').value
+      }));
+    } catch (e) { /* abaikan */ }
+  }
+
+  function muatWA() {
+    document.getElementById('wa-tgl').value = hariIni();
+    document.getElementById('wa-jam').value = '80';
+    try {
+      var data = JSON.parse(localStorage.getItem(KUNCI_WA) || '{}');
+      if (data.awal !== undefined) document.getElementById('wa-awal').value = data.awal;
+      if (data.jam !== undefined) document.getElementById('wa-jam').value = data.jam;
+    } catch (e) { /* abaikan */ }
   }
 
   function simpan() {
@@ -180,7 +338,17 @@ select{width:84px}
     hitungSemua();
   });
 
+  ['wa-tgl', 'wa-awal', 'wa-jam'].forEach(function (id) {
+    document.getElementById(id).addEventListener('input', function () {
+      simpanWA();
+      perbaruiWA();
+    });
+  });
+  document.getElementById('wa-kirim-teks').addEventListener('click', kirimTeks);
+  document.getElementById('wa-kirim-gambar').addEventListener('click', kirimGambar);
+
   muat();
+  muatWA();
   hitungSemua();
 })();
 </script>
