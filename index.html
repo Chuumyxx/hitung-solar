@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hitung Solar</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#0b6bcb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Hitung Solar">
+<style>
+:root{color-scheme:light dark;--bg:#f4f6f8;--card:#ffffff;--txt:#1d2430;--mut:#667085;--acc:#0b6bcb;--line:#d0d7e0;--err:#c62828}
+@media (prefers-color-scheme:dark){:root{--bg:#121417;--card:#1c2026;--txt:#e8ecf1;--mut:#9aa4b2;--acc:#4da3ff;--line:#2e3540;--err:#ff6b6b}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--txt);padding:12px}
+main{max-width:420px;margin:0 auto}
+h1{font-size:20px;margin:4px 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.card h2{font-size:16px;margin:0 0 2px}
+.sub{font-size:12px;color:var(--mut);margin-bottom:10px}
+.row{display:flex;gap:8px}
+input,select{font:inherit;font-size:16px;padding:10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--txt);min-width:0}
+input{flex:1;width:100%}
+select{width:84px}
+.hasil{margin-top:10px;font-size:24px;font-weight:700;color:var(--acc)}
+.hasil small{font-size:13px;font-weight:400;color:var(--mut)}
+.err{color:var(--err);font-size:13px;min-height:1em;margin-top:6px}
+.rumus{font-size:12px;color:var(--mut);line-height:1.6}
+.btn{font:inherit;font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--txt);width:100%;margin-top:4px}
+</style>
+</head>
+<body>
+<main>
+<h1>Hitung Solar</h1>
+
+<section class="card">
+  <h2>Tangki 01</h2>
+  <div class="sub">Rebah · Maks 210 cm</div>
+  <input id="t1" type="text" inputmode="decimal" placeholder="Tinggi (cm)" autocomplete="off">
+  <div class="hasil" id="r1">— <small>liter</small></div>
+  <div class="err" id="e1"></div>
+</section>
+
+<section class="card">
+  <h2>Tangki 02</h2>
+  <div class="sub">Rebah · Maks 210 cm</div>
+  <input id="t2" type="text" inputmode="decimal" placeholder="Tinggi (cm)" autocomplete="off">
+  <div class="hasil" id="r2">— <small>liter</small></div>
+  <div class="err" id="e2"></div>
+</section>
+
+<section class="card">
+  <h2>Tangki Genset (DLAM)</h2>
+  <div class="sub">Kotak 120 × 118 cm · Maks 95 cm</div>
+  <input id="td" type="text" inputmode="decimal" placeholder="Tinggi (cm)" autocomplete="off">
+  <div class="hasil" id="rd">— <small>liter</small></div>
+  <div class="err" id="ed"></div>
+</section>
+
+<section class="card">
+  <h2>Total 3 Tangki</h2>
+  <div class="hasil" id="rt">— <small>liter</small></div>
+  <button class="btn" id="reset" type="button">Kosongkan isian</button>
+</section>
+
+<section class="card rumus">
+  <b>Rumus</b><br>
+  Tangki rebah: luas isi = luas juring − luas segitiga, π = 3,14 (sama dengan Excel). Volume = luas × 4,78 m.<br>
+  Tangki genset: volume = 120 × 118 × tinggi (cm) ÷ 1000.<br>
+  Tiap tangki dibulatkan ke liter bulat, lalu dijumlahkan.
+</section>
+</main>
+
+<script>
+(function () {
+  var PI_SHEET = 3.14;          // π yang dipakai Excel untuk juring
+  var JARI = 1.05;              // r = D/2, D = 2,10 m
+  var PANJANG = 4.78;           // m
+  var TANGKI = {
+    t1: { tipe: 'rebah', maks: 210 },
+    t2: { tipe: 'rebah', maks: 210 },
+    td: { tipe: 'kotak', maks: 95 }
+  };
+  var SIMPAN = 'hitung-solar-v2';
+
+  // Tangki rebah: tinggi cm -> liter
+  function literRebah(cm) {
+    var r = JARI;
+    var h = cm / 100;
+    var d = h - r;                              // jarak pusat ke permukaan isi
+    var x = Math.max(-1, Math.min(1, d / r));
+    var betaRad = 2 * Math.PI - 2 * Math.acos(x); // sudut pusat bagian isi (radian)
+    var betaDeg = betaRad * 180 / Math.PI;
+    var juring = PI_SHEET * r * r * betaDeg / 360;
+    var segitiga = (r * r / 2) * Math.sin(betaRad);
+    return (juring - segitiga) * PANJANG * 1000;
+  }
+
+  // Tangki kotak (genset): tinggi cm -> liter
+  function literKotak(cm) {
+    return 120 * 118 * cm / 1000;
+  }
+
+  // Baca isian: koma atau titik boleh. Mengembalikan null jika kosong.
+  function bacaAngka(teks) {
+    var t = String(teks).trim().replace(',', '.');
+    if (t === '') return null;
+    var n = Number(t);
+    if (!isFinite(n) || n < 0) return NaN;
+    return n;
+  }
+
+  function hitung(id) {
+    var akhir = id.slice(1);
+    var cfg = TANGKI[id];
+    var input = document.getElementById(id);
+    var errEl = document.getElementById('e' + akhir);
+    var outEl = document.getElementById('r' + akhir);
+    errEl.textContent = '';
+
+    var cm = bacaAngka(input.value);
+    if (cm === null) { outEl.innerHTML = '— <small>liter</small>'; return null; }
+    if (isNaN(cm)) {
+      errEl.textContent = 'Isi tinggi dengan angka 0 atau lebih.';
+      outEl.innerHTML = '— <small>liter</small>';
+      return null;
+    }
+    if (cm > cfg.maks) {
+      errEl.textContent = 'Tinggi melebihi batas (maks ' + cfg.maks + ' cm).';
+      outEl.innerHTML = '— <small>liter</small>';
+      return null;
+    }
+
+    var liter = cfg.tipe === 'rebah' ? literRebah(cm) : literKotak(cm);
+    var bulat = Math.round(liter);
+    outEl.innerHTML = bulat.toLocaleString('id-ID') + ' <small>liter</small>';
+    return bulat;
+  }
+
+  function hitungSemua() {
+    var a = hitung('t1');
+    var b = hitung('t2');
+    var c = hitung('td');
+    var total = document.getElementById('rt');
+    if (a === null || b === null || c === null) {
+      total.innerHTML = '— <small>liter</small>';
+    } else {
+      total.innerHTML = (a + b + c).toLocaleString('id-ID') + ' <small>liter</small>';
+    }
+    simpan();
+  }
+
+  function simpan() {
+    try {
+      var data = {};
+      ['t1', 't2', 'td'].forEach(function (id) {
+        data[id] = document.getElementById(id).value;
+      });
+      localStorage.setItem(SIMPAN, JSON.stringify(data));
+    } catch (e) { /* localStorage tidak tersedia */ }
+  }
+
+  function muat() {
+    try {
+      var data = JSON.parse(localStorage.getItem(SIMPAN) || '{}');
+      ['t1', 't2', 'td'].forEach(function (id) {
+        if (data[id] !== undefined) document.getElementById(id).value = data[id];
+      });
+    } catch (e) { /* abaikan */ }
+  }
+
+  ['t1', 't2', 'td'].forEach(function (id) {
+    document.getElementById(id).addEventListener('input', hitungSemua);
+  });
+
+  document.getElementById('reset').addEventListener('click', function () {
+    ['t1', 't2', 'td'].forEach(function (id) { document.getElementById(id).value = ''; });
+    hitungSemua();
+  });
+
+  muat();
+  hitungSemua();
+})();
+</script>
+</body>
+</html>
