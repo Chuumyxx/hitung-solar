@@ -36,11 +36,13 @@ select{width:84px}
 .wa-tombol{display:flex;gap:8px;margin-top:10px}
 .wa-tombol .btn{margin-top:0;flex:1}
 .btn-utama{background:var(--acc);border-color:var(--acc);color:#fff}
+.tanggal{font-size:14px;color:var(--mut);margin:0 0 12px}
 </style>
 </head>
 <body>
 <main>
 <h1>Hitung Solar</h1>
+<div class="tanggal" id="tanggal-hari"></div>
 
 <section class="card">
   <h2>Tangki 01</h2>
@@ -346,6 +348,9 @@ select{width:84px}
   });
   document.getElementById('wa-kirim-teks').addEventListener('click', kirimTeks);
   document.getElementById('wa-kirim-gambar').addEventListener('click', kirimGambar);
+
+  document.getElementById('tanggal-hari').textContent =
+    new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   muat();
   muatWA();
