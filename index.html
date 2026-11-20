@@ -55,6 +55,7 @@ input[type=date]{min-height:44px;color-scheme:inherit}
 .wa-pratinjau{font-size:13px;padding:8px 10px;margin-top:8px}
 .wa-tombol{margin-top:8px}
 .btn{min-height:42px}
+.salah{border-color:var(--err)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--err) 25%,transparent)!important}
 .btn-utama{min-height:42px}
 .rumus{font-size:11px}
 h1{margin:2px 0 2px}
@@ -232,10 +233,10 @@ h1{margin:2px 0 2px}
     var tglVal = document.getElementById('wa-tgl').value;
     var awal = bacaBulat(document.getElementById('wa-awal').value);
     var jam = bacaBulat(document.getElementById('wa-jam').value);
-    if (!tglVal) return { error: 'Isi tanggal akhir.' };
-    if (totalSekarang === null) return { error: 'Isi ketiga tangki dengan tinggi yang valid dulu.' };
-    if (awal === null) return { error: 'Isi stok akhir bulan lalu.' };
-    if (jam === null || jam <= 0) return { error: 'Isi pemakaian per jam (lebih dari 0).' };
+    if (!tglVal) return { error: 'Isi tanggal akhir.', id: 'wa-tgl' };
+    if (totalSekarang === null) return { error: 'Isi ketiga tangki dengan tinggi yang valid dulu.', id: 't1' };
+    if (awal === null) return { error: 'Isi stok akhir bulan lalu dulu (contoh: 24315).', id: 'wa-awal' };
+    if (jam === null || jam <= 0) return { error: 'Isi pemakaian per jam (lebih dari 0).', id: 'wa-jam' };
 
     var d = new Date(tglVal + 'T00:00:00');
     var perHari = jam * 24;
@@ -278,9 +279,23 @@ h1{margin:2px 0 2px}
     return n;
   }
 
+  // Kolom yang salah disorot merah, diberi fokus, lalu layar digeser ke sana
+  function tandaiSalah(hasil) {
+    perbaruiWA();
+    ['wa-tgl', 'wa-awal', 'wa-jam', 't1', 't2', 'td'].forEach(function (id) {
+      document.getElementById(id).classList.remove('salah');
+    });
+    if (hasil.id) {
+      var el = document.getElementById(hasil.id);
+      el.classList.add('salah');
+      el.focus();
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
   function kirimTeks() {
     var hasil = buatLaporan();
-    if (hasil.error) { perbaruiWA(); return; }
+    if (hasil.error) { tandaiSalah(hasil); return; }
     // Langsung pindah ke WhatsApp di tab yang sama (tanpa tab/pop-up baru).
     // Nomor diisi = langsung ke chat itu; kosong = WhatsApp minta pilih kontak.
     var tujuan = nomorWA();
@@ -289,7 +304,7 @@ h1{margin:2px 0 2px}
 
   function kirimGambar() {
     var hasil = buatLaporan();
-    if (hasil.error) { perbaruiWA(); return; }
+    if (hasil.error) { tandaiSalah(hasil); return; }
     var baris = hasil.teks.split('\n');
     var lebar = 720, pad = 36, lh = 40;
     var tinggi = 110;
@@ -384,6 +399,7 @@ h1{margin:2px 0 2px}
 
   ['wa-tgl', 'wa-awal', 'wa-jam', 'wa-nomor'].forEach(function (id) {
     document.getElementById(id).addEventListener('input', function () {
+      this.classList.remove('salah');
       simpanWA();
       perbaruiWA();
     });
