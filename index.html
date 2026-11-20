@@ -37,6 +37,28 @@ select{width:84px}
 .wa-tombol .btn{margin-top:0;flex:1}
 .btn-utama{background:var(--acc);border-color:var(--acc);color:#fff}
 .tanggal{font-size:14px;color:var(--mut);margin:0 0 12px}
+input:focus,select:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 25%,transparent)}
+input[type=date]{min-height:44px;color-scheme:inherit}
+.card{padding:12px 14px;margin-bottom:10px}
+.card h2{font-size:15px}
+.sub{margin-bottom:8px}
+.baris{display:flex;align-items:center;gap:10px}
+.baris input{flex:1 1 0;min-width:0;min-height:44px}
+.baris .hasil{margin:0;font-size:20px;white-space:nowrap;text-align:right;min-width:110px}
+.hasil small{font-size:12px}
+.err:empty{display:none}
+.err{min-height:0;margin-top:6px;font-size:12px}
+.card > .hasil{margin-top:8px}
+.wa-field{margin-top:8px}
+.wa-field label{margin-bottom:2px}
+.wa-field input{min-height:40px}
+.wa-pratinjau{font-size:13px;padding:8px 10px;margin-top:8px}
+.wa-tombol{margin-top:8px}
+.btn{min-height:42px}
+.btn-utama{min-height:42px}
+.rumus{font-size:11px}
+h1{margin:2px 0 2px}
+.tanggal{margin:0 0 8px}
 </style>
 </head>
 <body>
@@ -47,24 +69,30 @@ select{width:84px}
 <section class="card">
   <h2>Tangki 01</h2>
   <div class="sub">Rebah · Maks 210 cm</div>
-  <input id="t1" type="text" inputmode="decimal" placeholder="Tinggi (cm)" autocomplete="off">
-  <div class="hasil" id="r1">— <small>liter</small></div>
+  <div class="baris">
+    <input id="t1" type="text" inputmode="decimal" placeholder="Tinggi (cm)" autocomplete="off">
+    <div class="hasil" id="r1">— <small>liter</small></div>
+  </div>
   <div class="err" id="e1"></div>
 </section>
 
 <section class="card">
   <h2>Tangki 02</h2>
   <div class="sub">Rebah · Maks 210 cm</div>
-  <input id="t2" type="text" inputmode="decimal" placeholder="Tinggi (cm)" autocomplete="off">
-  <div class="hasil" id="r2">— <small>liter</small></div>
+  <div class="baris">
+    <input id="t2" type="text" inputmode="decimal" placeholder="Tinggi (cm)" autocomplete="off">
+    <div class="hasil" id="r2">— <small>liter</small></div>
+  </div>
   <div class="err" id="e2"></div>
 </section>
 
 <section class="card">
   <h2>Tangki Genset (DLAM)</h2>
   <div class="sub">Kotak 120 × 118 cm · Maks 95 cm</div>
-  <input id="td" type="text" inputmode="decimal" placeholder="Tinggi (cm)" autocomplete="off">
-  <div class="hasil" id="rd">— <small>liter</small></div>
+  <div class="baris">
+    <input id="td" type="text" inputmode="decimal" placeholder="Tinggi (cm)" autocomplete="off">
+    <div class="hasil" id="rd">— <small>liter</small></div>
+  </div>
   <div class="err" id="ed"></div>
 </section>
 
@@ -79,6 +107,7 @@ select{width:84px}
   <div class="wa-field"><label for="wa-tgl">Tanggal akhir</label><input id="wa-tgl" type="date"></div>
   <div class="wa-field"><label for="wa-awal">Stok akhir bulan lalu (liter)</label><input id="wa-awal" type="text" inputmode="numeric" placeholder="contoh: 24315" autocomplete="off"></div>
   <div class="wa-field"><label for="wa-jam">Pemakaian per jam (liter)</label><input id="wa-jam" type="text" inputmode="numeric" placeholder="80" autocomplete="off"></div>
+  <div class="wa-field"><label for="wa-nomor">Nomor WA tujuan (opsional, contoh 08xxxxxxxxxx)</label><input id="wa-nomor" type="tel" inputmode="tel" placeholder="kosongkan untuk pilih kontak" autocomplete="off"></div>
   <div class="wa-pratinjau" id="wa-pratinjau"></div>
   <div class="err" id="wa-err"></div>
   <div class="wa-tombol">
@@ -241,10 +270,21 @@ select{width:84px}
     }
   }
 
+  // Nomor format internasional (08xx -> 628xx). Kosong = pilih kontak di WhatsApp.
+  function nomorWA() {
+    var n = document.getElementById('wa-nomor').value.replace(/[^0-9]/g, '');
+    if (n === '') return '';
+    if (n.charAt(0) === '0') n = '62' + n.slice(1);
+    return n;
+  }
+
   function kirimTeks() {
     var hasil = buatLaporan();
     if (hasil.error) { perbaruiWA(); return; }
-    window.open('https://wa.me/?text=' + encodeURIComponent(hasil.teks), '_blank');
+    // Langsung pindah ke WhatsApp di tab yang sama (tanpa tab/pop-up baru).
+    // Nomor diisi = langsung ke chat itu; kosong = WhatsApp minta pilih kontak.
+    var tujuan = nomorWA();
+    window.location.href = 'https://wa.me/' + tujuan + '?text=' + encodeURIComponent(hasil.teks);
   }
 
   function kirimGambar() {
@@ -297,7 +337,8 @@ select{width:84px}
     try {
       localStorage.setItem(KUNCI_WA, JSON.stringify({
         awal: document.getElementById('wa-awal').value,
-        jam: document.getElementById('wa-jam').value
+        jam: document.getElementById('wa-jam').value,
+        nomor: document.getElementById('wa-nomor').value
       }));
     } catch (e) { /* abaikan */ }
   }
@@ -309,6 +350,7 @@ select{width:84px}
       var data = JSON.parse(localStorage.getItem(KUNCI_WA) || '{}');
       if (data.awal !== undefined) document.getElementById('wa-awal').value = data.awal;
       if (data.jam !== undefined) document.getElementById('wa-jam').value = data.jam;
+      if (data.nomor !== undefined) document.getElementById('wa-nomor').value = data.nomor;
     } catch (e) { /* abaikan */ }
   }
 
@@ -340,7 +382,7 @@ select{width:84px}
     hitungSemua();
   });
 
-  ['wa-tgl', 'wa-awal', 'wa-jam'].forEach(function (id) {
+  ['wa-tgl', 'wa-awal', 'wa-jam', 'wa-nomor'].forEach(function (id) {
     document.getElementById(id).addEventListener('input', function () {
       simpanWA();
       perbaruiWA();
